@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VaultShare</title>
+<style>body{font:16px system-ui;max-width:760px;margin:3rem auto;padding:0 1rem;color:#182233}button,input{font:inherit;padding:.5rem;margin:.25rem}button{cursor:pointer}section{padding:1rem;border:1px solid #ccd3db;border-radius:8px;margin:1rem 0}li{margin:.7rem 0}#message{white-space:pre-wrap;color:#874000}</style>
+<h1>VaultShare</h1><p>File sharing with expiring links</p>
+<section><h2>Files</h2><input id="file" type="file"><button id="upload">Upload</button><button id="refresh">Refresh</button><ul id="files"></ul></section><p id="message"></p>
+<script>
+const msg=t=>document.querySelector('#message').textContent=t;
+async function api(path,options={}){const r=await fetch('/api'+path,options);if(!r.ok)throw Error((await r.text())||r.status);return r}
+document.querySelector('#upload').onclick=async()=>{try{const f=document.querySelector('#file').files[0];if(!f)throw Error('Choose a file');const body=new FormData();body.append('file',f);await api('/files',{method:'POST',body});msg('Uploaded');refresh()}catch(e){msg(e.message)}};
+document.querySelector('#refresh').onclick=refresh;
+async function refresh(){try{const r=await api('/files');const data=await r.json();const list=document.querySelector('#files');list.replaceChildren();for(const f of data){const li=document.createElement('li');li.append(document.createTextNode(`${f.filename} (${f.sizeBytes} bytes) `));for(const [label,action] of [['Download',()=>download(f.id,f.filename)],['Share',()=>share(f.id)],['Delete',()=>remove(f.id)]]){const b=document.createElement('button');b.textContent=label;b.onclick=action;li.append(b)}list.append(li)}}catch(e){msg(e.message)}}
+async function download(id,name){try{const r=await api('/files/'+id);const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}catch(e){msg(e.message)}}
+async function share(id){try{const r=await api('/files/'+id+'/shares',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hours:1,maxDownloads:1})});const data=await r.json();msg('One-hour, one-download link: '+location.origin+data.path)}catch(e){msg(e.message)}}
+async function remove(id){try{await api('/files/'+id,{method:'DELETE'});msg('Deleted');refresh()}catch(e){msg(e.message)}}
+refresh();
+</script></html>
