@@ -1,38 +1,31 @@
 # VaultShare
 
-VaultShare is a three-instance AWS demonstration of secure file sharing. The final design has one shared VPC and one EC2 instance owned by each of three AWS accounts. The instances are tagged **Tanay**, **Amman**, and **Dhruv**. Amman owns the AWS Organization's consolidated bill.
+VaultShare is a file-sharing demo across three AWS accounts. Users can upload, list, download, delete, and share files using links with expiry and download limits. The demo app has no login. Use only disposable files while its public HTTP endpoint is open.
 
 ## Five modules and individual ownership
 
 | Module | Owner | Demonstration |
 | --- | --- | --- |
-| 1. File API and storage | Amman | Upload, list, download, delete, S3 persistence |
-| 2. Basic application security | Amman | Private network access, restricted S3 permissions, server-side encryption, expiring links |
-| 3. VPC and deployment | Amman and Tanay | Amman: AWS Organization, shared VPC and subnets. Tanay: his app instance, Kubernetes (K3s), IAM and Docker deployment |
-| 4. CI/CD | Tanay | Maven checks, Docker build, Jenkins pipeline |
-| 5. Monitoring and scaling | Dhruv | Prometheus, Grafana, Alertmanager, CloudWatch alarms, Kubernetes app pod scaling |
+| 1. File API and storage | Amman | Spring Boot API, PostgreSQL metadata, S3 file storage |
+| 2. Basic application security | Amman | Expiring links, S3 server-side encryption, scoped IAM and network rules |
+| 3. AWS infrastructure and deployment | Amman and Tanay | Amman: Organization, shared VPC, RDS and S3. Tanay: EC2, Terraform, K3s and app deployment |
+| 4. CI/CD | Tanay | Maven build, Docker image, Jenkins publish and K3s deploy stages |
+| 5. Monitoring and scaling | Dhruv and Tanay | Dhruv: Prometheus scrape, Grafana dashboard and alert. Tanay: Kubernetes HPA |
 
-Each owner should present only work they actually implemented and can explain. Shared integration is a team demonstration.
+Each member should present only work they actually implemented and can explain.
 
-## Architecture
+## Current AWS layout
 
-**Deployment decision:** Amman will own the AWS Organization, shared VPC, and combined bill. Tanay and Dhruv join as participant accounts. See `docs/multi-account-setup.md` before creating resources. The existing `infra/` Terraform is a **single-account prototype** and must not be applied for this final design.
+* **Amman's account** owns the Organization, shared VPC, PostgreSQL RDS database, and S3 bucket.
+* **Tanay's account** runs the app on EC2 in Amman's shared VPC. K3s runs the app with an HPA; Jenkins builds, publishes, and deploys Docker images.
+* **Dhruv's account** will run Prometheus and Grafana on EC2 in his own VPC. Prometheus scrapes Tanay's public demo endpoint. Use `monitoring/compose.yaml` and `monitoring/prometheus.yml`.
 
-* **Amman account:** AWS Organization, shared VPC and subnets, plus PostgreSQL instance reachable only from the application.
-* **Tanay account:** app instance in Amman's shared subnet, running a single-node K3s Kubernetes cluster. Kubernetes HPA can scale app pods from one to two on that instance.
-* **Dhruv account:** monitoring instance in Amman's shared subnet, running Prometheus, Grafana, and Alertmanager.
-* S3 stores files with AWS-managed server-side encryption. The app uses an IAM instance profile, never static AWS keys. The app has no login, so access to its API must be restricted to the demo team. CloudWatch alarms and Kubernetes pod scaling support the review.
+**Review limitation:** Dhruv's separate VPC does not satisfy the original requirement for all three EC2 instances to be in one VPC. If that requirement is enforced, Dhruv must join Amman's Organization and launch in an Amman-shared subnet. An RDS database does not count as Amman's EC2 instance; confirm he has a separate EC2 instance if the review requires one per member.
 
-## Start locally
+## Deploy and verify
 
-Install Docker and run `docker compose up --build` from this directory. Copy `.env.example` to `.env` and set strong, unique values first. The local profile stores files on disk for demonstration; the AWS profile uses S3. Open `http://localhost:8080` for the app and `http://localhost:3000` for Grafana.
+The app source is in `app/`, the Jenkins pipeline is `Jenkinsfile`, and Tanay's live infrastructure is in `infra/tanay/`. `docs/tanay-live-status.md` records verified AWS state. The root `infra/` directory is an older single-account prototype and must not be applied to the current setup.
 
-## Deploy to AWS
+For the monitoring demo, Dhruv starts the two services from `monitoring/` with `docker compose up -d`, connects Grafana to Prometheus at `http://prometheus:9090`, and creates a Grafana-managed alert on the `up{job="vaultshare"}` metric. Grafana and Prometheus ports bind to localhost on Dhruv's EC2 and can be viewed through AWS Systems Manager port forwarding.
 
-For the agreed three-account design, follow `docs/multi-account-setup.md` and `docs/kubernetes-deployment.md`. Tanay's verified live state is in `docs/tanay-live-status.md`, with Jenkins access steps in `docs/tanay-jenkins-handoff.md`. The `infra/` Terraform and `docs/aws-deployment.md` describe an older **single-account prototype** and must not be applied to the final review setup. Amman builds and shares the network foundation; Tanay and Dhruv then launch their own instances in its shared subnets.
-
-## Review evidence and limits
-
-Capture the VPC resource map, three EC2 instance IDs with **three different owner account IDs**, IAM/security groups, successful app workflow, Jenkins run, Grafana dashboard, an Alertmanager notification, a CloudWatch alarm, and Kubernetes HPA scaling from one app pod to two. HPA scales pods on Tanay's existing instance. Keep the no-login app reachable only by the demo team.
-
-AWS resources have costs beyond EC2, including public IPv4 addresses, storage, traffic, and alarm usage. Set an AWS budget and remove the stack when the demonstration ends. Tanay's deployed infrastructure is managed by `infra/tanay/`; the older `infra/` prototype must not be applied. Docker, Kubernetes, Terraform, Maven, and Jenkins are part of the intended DevOps workflow. Ansible and GitHub Actions are optional.
+Use the app's public endpoint only for the short demo. After the review, close Tanay's public TCP 30080 rule and remove demo resources. Docker, Kubernetes, Terraform, Maven, and Jenkins are in the actual workflow. Ansible, GitHub Actions, Alertmanager, and CloudWatch alarms are not part of the simplified implementation.

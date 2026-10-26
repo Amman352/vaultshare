@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: vaultshare
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # Tanay's public demo IP is ephemeral; update this after an EC2 stop/start.
+      - targets: ['54.89.212.183:30080']
