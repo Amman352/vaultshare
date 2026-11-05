@@ -1,6 +1,6 @@
 # VaultShare
 
-VaultShare is a file-sharing demo across three AWS accounts. Users can upload, list, download, delete, and share files using links with expiry and download limits. The demo app has no login. Use only disposable files while its public HTTP endpoint is open.
+VaultShare is a file-sharing demo across three AWS accounts. Users can upload, list, download, delete, and share files using links with expiry and download limits. The demo app has no login. Use only disposable files while its public HTTP endpoint is open .
 
 ## Five modules and individual ownership
 
