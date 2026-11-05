@@ -6,6 +6,12 @@ pipeline {
   stages {
     stage('Build and test') { steps { dir('app') { sh 'mvn -B verify' } } }
     stage('Build image') { steps { sh 'docker build -t ${IMAGE_REPO}:${BUILD_NUMBER} app' } }
+    stage('Scan image with Trivy') {
+      steps {
+        sh 'trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --format table --output trivy-report.txt ${IMAGE_REPO}:${BUILD_NUMBER}'
+        archiveArtifacts artifacts: 'trivy-report.txt', fingerprint: true
+      }
+    }
     stage('Publish image') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'docker-registry', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
