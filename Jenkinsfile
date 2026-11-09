@@ -8,7 +8,7 @@ pipeline {
     stage('Build image') { steps { sh 'docker build -t ${IMAGE_REPO}:${BUILD_NUMBER} app' } }
     stage('Scan image with Trivy') {
       steps {
-        sh 'trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --format table --output trivy-report.txt ${IMAGE_REPO}:${BUILD_NUMBER}'
+        sh 'TMPDIR=/var/tmp trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --no-progress --format table --output trivy-report.txt ${IMAGE_REPO}:${BUILD_NUMBER}'
         archiveArtifacts artifacts: 'trivy-report.txt', fingerprint: true
       }
     }
