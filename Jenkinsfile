@@ -21,7 +21,7 @@ pipeline {
       }
     }
     stage('Deploy to K3s') {
-      steps { sh 'sudo /usr/local/sbin/vaultshare-deploy ${IMAGE_REPO}:${BUILD_NUMBER}' }
+      steps { retry(2) { sh 'sudo /usr/local/sbin/vaultshare-deploy ${IMAGE_REPO}:${BUILD_NUMBER}' } }
     }
   }
   post { always { sh 'docker logout || true' } }
