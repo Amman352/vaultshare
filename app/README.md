@@ -1,8 +1,18 @@
 # VaultShare Spring Boot app — handoff to Amman
 
-This is the simplified source scaffold for Amman's file-sharing module. It includes file and share APIs, a browser UI, PostgreSQL metadata, S3 storage, expiring links with download limits, audit events, and Prometheus metrics. The app has no login. Anyone who can reach its API can list, download, share, and delete files, so keep the demo endpoint restricted to the team.
+This is the Spring Boot file-sharing demo. It includes file and share APIs, a browser UI, PostgreSQL metadata, S3 storage, expiring links with download limits, audit events, and Prometheus metrics. File listing and downloads require a client public IP in the admin allowlist. The demo admin page is `/admin.html`; uploads, share creation, and deletion remain open on the public HTTP endpoint, so use disposable files only.
 
-The source compiled and packaged successfully with Java 21 and Maven 3.9.11 on 26 October 2026. There are **no automated application tests yet**, and the full PostgreSQL/S3 workflow has not been tested. Review and finish the code before treating it as Amman's final implementation.
+The Jenkins pipeline builds with Maven, runs the client access tests, builds and scans the Docker image, and deploys to K3s.
+
+## Client command
+
+After adding the client's **public IPv4 address** in `/admin.html`, run this single command on the client instance:
+
+```bash
+bash <(curl -fsSL http://SERVER_PUBLIC_IP:30080/cli.sh) http://SERVER_PUBLIC_IP:30080
+```
+
+The menu lists files, asks for a number, and downloads the selected file to the current directory. An unapproved IP receives a clear `No access` message. The client needs Bash, curl, and Python 3. Since the demo endpoint uses HTTP, run this command only for the class demonstration against the team-controlled server.
 
 ## Build
 
