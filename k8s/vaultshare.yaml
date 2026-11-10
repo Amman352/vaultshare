@@ -69,6 +69,7 @@ metadata:
   namespace: vaultshare
 spec:
   type: NodePort
+  externalTrafficPolicy: Local
   selector:
     app: vaultshare
   ports:

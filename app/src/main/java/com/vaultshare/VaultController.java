@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api")
@@ -16,11 +17,13 @@ class VaultController {
     private static final Logger audit = LoggerFactory.getLogger("VaultShareAudit");
     private final FileRepository files; private final ShareRepository shares;
     private final StorageService storage;
-    VaultController(FileRepository files, ShareRepository shares, StorageService storage) {
-        this.files=files; this.shares=shares; this.storage=storage;
+    private final ClientAccess access;
+    VaultController(FileRepository files, ShareRepository shares, StorageService storage, ClientAccess access) {
+        this.files=files; this.shares=shares; this.storage=storage; this.access=access;
     }
     record ShareRequest(int hours,int maxDownloads) {}
-    @GetMapping("/files") List<Map<String,Object>> list() {
+    @GetMapping("/files") List<Map<String,Object>> list(HttpServletRequest request) {
+        access.requireDownload(request);
         return files.findAll().stream().map(f -> Map.<String,Object>of("id",f.id,"filename",f.filename,"sizeBytes",f.sizeBytes,"createdAt",f.createdAt)).toList();
     }
     @PostMapping(value="/files",consumes=MediaType.MULTIPART_FORM_DATA_VALUE) Map<String,String> upload(@RequestPart("file") MultipartFile file) throws Exception {
@@ -37,7 +40,8 @@ class VaultController {
     private ResponseEntity<byte[]> download(FileRecord f) throws Exception {
         return ResponseEntity.ok().contentType(MediaType.parseMediaType(f.contentType)).header(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename*=UTF-8''"+java.net.URLEncoder.encode(f.filename,java.nio.charset.StandardCharsets.UTF_8)).body(storage.get(f.objectKey));
     }
-    @GetMapping("/files/{id}") ResponseEntity<byte[]> get(@PathVariable String id) throws Exception {
+    @GetMapping("/files/{id}") ResponseEntity<byte[]> get(@PathVariable String id, HttpServletRequest request) throws Exception {
+        access.requireDownload(request);
         FileRecord f=file(id); audit.info("event=download fileId={}",id); return download(f);
     }
     @DeleteMapping("/files/{id}") void delete(@PathVariable String id) throws Exception {
@@ -52,7 +56,8 @@ class VaultController {
         return Map.of("path","/api/share/"+s.id,"expiresAt",s.expiresAt.toString());
     }
     @Transactional
-    @GetMapping("/share/{shareId}") ResponseEntity<byte[]> shared(@PathVariable String shareId) throws Exception {
+    @GetMapping("/share/{shareId}") ResponseEntity<byte[]> shared(@PathVariable String shareId, HttpServletRequest request) throws Exception {
+        access.requireDownload(request);
         ShareRecord s=shares.findLocked(shareId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if(s.expiresAt.isBefore(Instant.now()) || s.remainingDownloads<=0) throw new ResponseStatusException(HttpStatus.GONE);
         FileRecord f=files.findById(s.fileId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));

@@ -8,6 +8,7 @@ import jakarta.persistence.LockModeType;
 import java.util.Optional;
 
 interface FileRepository extends JpaRepository<FileRecord,String> {}
+interface AllowedClientIpRepository extends JpaRepository<AllowedClientIp,String> {}
 interface ShareRepository extends JpaRepository<ShareRecord,String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from ShareRecord s where s.id = :id")
